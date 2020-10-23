@@ -37,6 +37,7 @@ EOM
   #(1) | #(2) | #(3) )
     #(add) ## what is?
    ;; esac
+EOM
 
 # what is?
 : <<EOM #add to #

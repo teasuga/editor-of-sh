@@ -1,8 +1,8 @@
 #!/bin/sh
 # 1. : <<EOL #       (a model)
-# 2. : <<EOM # [ { ] command ... [a sharp] ...
-              [ ... ]
-               [ } ] (a macro)
+# 2. : <<EOM # [ { ] command [ ... [a sharp] ... ]
+#                            [ ... [a sharp] ... ]
+#              [ } ] (a macro)
 # 3. in one file.
 # 4. specialize a colon. exchange it with macro.
 #   #(name)    a command. name is optional.
@@ -35,7 +35,8 @@ EOL
  EOL
  `
 EOM
-: <<EOM #{ if one of :
+: <<EOM #{
+    if one of :
       #3()
     do #(add)
   }

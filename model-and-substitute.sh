@@ -1,16 +1,6 @@
 #!/bin/sh
-# 1. : <<EOL #       (a model)
-# 2. : <<EOM # [ { ] command [ ... [a sharp] ... ]
-#                            [ ... [a sharp] ... ]
-#              [ } ] (a macro)
-# 3. in one file.
-# 4. specialize a colon. exchange it with macro.
-#   #(name)    a command. name is optional.
-#   #n(name)   some commands. name is optional.
-#   #          a word.
-# 5. an indent in the documents
-#
 
+# a model.
 : << EOL #
   while line; 
     if one of :
@@ -24,6 +14,7 @@
 
 EOL 
 
+# a macro.
 : <<EOM #while #
  while :; do
    old=$IFS
@@ -35,16 +26,19 @@ EOL
  EOL
  `
 EOM
+
+# a macro over multiple lines.
 : <<EOM #{
     if one of :
       #3()
-    do #(add)
+    do #(add) ## what is?
   }
   case "$line" in
   #(1) | #(2) | #(3) )
-    #(add)
+    #(add) ## what is?
    ;; esac
 
+# what is?
 : <<EOM #add to #
   #="$# $line"
 EOM

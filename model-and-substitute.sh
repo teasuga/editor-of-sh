@@ -22,7 +22,7 @@ EOL
    read # || break
    IFS=$old
    s=`wc -c << EOL
- $line
+ $#
  EOL
  `
 EOM

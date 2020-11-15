@@ -1,72 +1,76 @@
 #!/bin/perl
 
-### use Curses;
+use strict; use warnings;
+my ($is_draft = <<\EOL) ne "";
+Please don't run me.
+EOL
+
+$is_draft && exit $is_draft + 0;
+
+use Curses;
 # my $w = new Curses;
 
 use AnyEvent;
 
 my @states;
 
-my @num = (30 .. 32);
-
-foreach (@num) {
-  $_ = sprintf "%s%s\n", $_ - shift, "m";
-}
-
-my ($r, $g, $l) = @num;
-
-sub addstring {
-  print @_;
-}
-
-sub insstring {
-  1
+die if ERR == start_color;
+my @o = (COLOR_BLACK
+    , COLOR_RED
+    , COLOR_PURPLE
+    , COLOR_YELLOW
+    , COLOR_GREEN);
+my $p = COLOR_WHITE;
+for ($i = 0; $i < @o; $i++) {
+  init_pair $i + 1, $o[$i], $p;
 }
 
 sub color {
-  $c = shift;
-  unless (defined $c) {
-    return "\e[0m"
-  }
-  sprintf "\e[0;". $c;
+   $_[0]
 }
 
 $w = 0;
 sub kind {
    $u = eval { 
-   if (/^("|')/) {
-     $w ? 0 : (/"/ ? 3 : 4)
-   }
-   elsif (/\\\n/) {
-     2
-   }
-   elsif (/^#/) {
+   if (/^#/) {
       1
    }
+   elsif (s/^\\\n$/\\/m) {
+     2
+   }
+   elsif (/("|')$/) {
+     $w ? 0 : (/"/ ? 3 : 4)
+   }
+
  };
 }
 
 sub closed {
   $h = shift;
   1 while
-     $h =~ s/("[^\\"]*|'[^']*|\\.|#.*)/kind $1; ""/g
+     $h =~ s/(#.*|\\.|[^\\"]*"|[^']*')/kind $1; ""/g
     ;
 
   return $u;
 }
 sub color_and_append {
-  # $c = encode "UTF-8", $c;
+  $c = encode "UTF-8", $c;
 
-  if ($buf[$#buf] =~ /[\n;]/) {
+  if ($buf[$#buf] =~ /(^|[^\\])[\n;]$/) {
     push @buf, "$c";
   } else {
     $buf[$#buf] .= $c;
   }
    $f = color(closed $buf[$#buf]);
    if ($f) {
-     addstring($f)
-   } elsif ($buf[$#buf] =~ /[;\s]$/) {
-     addstring(color())
+     attrset (COLOR_PAIR($f));
+     addstring($c);
+     refresh;
+   } elsif ($buf[$#buf] =~ /(^|)[;\s]$/) {
+     my $m = 6;
+     attrset (COLOR_PAIR(1));
+     addstring($c);
+     refresh;
    }
 
   return $buf[$#buf];
@@ -83,9 +87,91 @@ sub cmd {
   return @a if wantarray;
   $a;
 }
+@cmd_c = ("",) x 3;
+sub lead_cmd {
+  $p = shift;
+  /^[{!(]*(|\$$|\[.*)/ &&
+      die;
+  $cmd_c[0] .= $p;
+}
+sub non_delim {
+   $o = shift;
+   $cmd_c[0] =~ /\[/ &&
+     if ($cmd_c[2] =~ /(^|\\)\]/) {
+        $o = "";
+     } elsif (!($o eq "")) {
+        $cmd_c[1] = $o;
+        a_cmd($o);
+     } else {
+        1
+     }
+  $o
+}
+sub tail_cmd {
+  $n = shift;
+  my $top = (split //, $cmd_c[0])[0];
+  ($top == "[" &&
+    $d = ($cmd_c[0] =~ s/\]//m)
+  ) || (
+   ($top == "{" &&
+    $d = ($cmd_c[0] =~ s/}//m)
+  ) ($top == "(" &&
+    $d = ($cmd_c[0] =~ s/\)//m)
+  ) ||
+    die;
+  $cmd_c[2] = $n;
+} 
+sub getcmd {
+  my ($l, $s, $w) = @_;
+  ("" eq ($w // "")) && die;
+  $m = join "", (
+             lead_cmd ($l), tail_cmd ($s), non_delim ($w)
+  )[0, 2, 1];
+}
+sub preprocess {
+  foreach my $r (@cmd) {
+     if (/^#\d+$/) {
+     }
+     elsif (/^#\w+$/) {
+     }
+     elsif (/^#$/) {
+     }
+  }
+  join " ", @cmd;
+}
+sub a_state {
+  my @t = ();
+  my ($q, $f, $k) = ();
+  while (
+     $build =~ /([${([!]*)([^`;(){}#&!|]*)(&&|\|\||[];&)} \t\n|]|)/
+     )
+  {
+     @t=();
+     foreach my $e (
+        ($1 // "")
+        ($2 // "")
+        ($3 // "")
+       ) {
+      push @t, $e . "";
+
+     getcmd @t;
+     push @st, preprocess @cmd;
+  }
+}
 sub find { 
   $model = shift;
+  $build = "";
     for (my $m @ma) {
+  a_state;
+   
+  for $i=0; $i < $#buf; $i++
+    $s = ($i == $#buf) : $buf[$i] : @buf[$i..$#buf];
+    $_ = $buf[$i];
+    / / next;
+    /#/ $b = $i; until ($i = (scalar $#buf)
+|| $buf[$i++] = /(;|\ n)/) 1 if $i > $#buf return $last_s = $buf[$b .. $i];
+    /(>|<)/ if $s =~ s/^(>|<)\s//m { $i++; next }
+    if $i++>$#buf && $buf[$i] = /( |#|>|<) return $last_s = $buf[$i];
       @s = states $model;
       if (scalar(@$m) == 2) {
        for (my $la @s) {
@@ -125,32 +211,22 @@ sub find {
    print $build_o, $model; 
 }
 sub delete_c {
-  if ($buf[$#buf] =~ /[\n;]$/) {
-    1;
-  if ($buf[$#buf] =~ /^$/) {
-    return
+  my $c = chop($buf[$#buf]) // return;
+  my $n = length $c;
+  unless ($x -= $n >= 0) || !($x = LINES)) {
+    ($y) && $y-=$n
   }
-
-  chop $buf[$#buf];
-  print ("\b");
+  move $y, $x;
+  chgat ($n, A_NORMAL, 1, undef);
 }
 
-my $wa1;
-$wa1 = AnyEvent->signal (signal => "CHWIN", cb => sub { insstring(0, 0, $states[$#states]); }
-);
-
-my $wa;
-$wa = AnyEvent->signal (signal => "INT", cb => sub { undef $wa; undef $wa1;
- exit; }
-);
-
-sub fork {
-  threads->create (\&find, $model);
+sub forking {
+  threads->create (\&find, $model // join "", @buf);
 }
-my $wa2 = AnyEvent->condvar;
-$wa2->cb (sub {
+my $wa3 = AnyEvent->condvar;
+sub getwide {
   if (!(defined $c)) {
-    exit
+    $wa3->send;
   } elsif (/\cH/) {
     delete_c
   } elsif (/\cX/) {
@@ -162,6 +238,7 @@ $wa2->cb (sub {
     $build_f = <STDIN> ;
     open $build_o, "<", $build_f and last;
     }
+    forking;
   } else {
     ($_,) = color_and_append;
     if (/^:\s+<<\s*(\w+)#(.*)\n/) {
@@ -187,12 +264,13 @@ $wa2->cb (sub {
 });
 
 
-AnyEvent->io(fh => STDIN, cb => sub {
-  $c = eval {
-  local $/ = undef; # getting wide-char?
-  my $c = <STDIN>;
-  };
-  $wa2->send;
+AnyEvent->io(fh => STDIN, poll = "r", cb => sub {
+  ($c, $f) = getchar;
+  $c //= $f;
+  threads->create (\&getwide);
 });
 
-AnyEvent::loop();
+AnyEvent->idle (cb => sub {
+  while (1) { }
+});
+$wa3->recv;

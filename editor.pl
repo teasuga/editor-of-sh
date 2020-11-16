@@ -1,7 +1,7 @@
 #!/bin/perl
 
 use strict; use warnings;
-my ($is_draft = <<\EOL) ne "";
+my $is_draft = (<<\EOL) ne "";
 Please don't run me.
 EOL
 

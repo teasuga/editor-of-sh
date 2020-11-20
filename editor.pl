@@ -53,29 +53,6 @@ sub closed {
 
   return $u;
 }
-sub color_and_append {
-  $c = encode "UTF-8", $c;
-
-  if ($buf[$#buf] =~ /(^|[^\\])[\n;]$/) {
-    push @buf, "$c";
-  } else {
-    $buf[$#buf] .= $c;
-  }
-   $f = color(closed $buf[$#buf]);
-   if ($f) {
-     attrset (COLOR_PAIR($f));
-     addstring($c);
-     refresh;
-   } elsif ($buf[$#buf] =~ /(^|)[;\s]$/) {
-     my $m = 6;
-     attrset (COLOR_PAIR(1));
-     addstring($c);
-     refresh;
-   }
-
-  return $buf[$#buf];
-}
-
 sub word {
   $s = shift;
   split " ", $s =~ s/  */ /gr;
@@ -141,9 +118,10 @@ sub preprocess {
 }
 sub a_state {
   my @t = ();
-  my ($q, $f, $k) = ();
+  my $build = shift;
+  my $ref = shift;
   while (
-     $build =~ /([${([!]*)([^`;(){}#&!|]*)(&&|\|\||[];&)} \t\n|]|)/
+     $build =~ /([${([!]*)([^`;(){}&!|]*)(&&|\|\||[];&)} \t\n|]|)/g
      )
   {
      @t=();
@@ -154,9 +132,26 @@ sub a_state {
        ) {
       push @t, $e . "";
 
-     getcmd @t;
-     push @st, preprocess @cmd;
+      &{$ref} @t;
   }
+}
+my $buf = ""; my $g = "";
+sub color_and_append {
+  $c = encode "UTF-8", $c;
+
+#  if ($buf[$#buf] =~ /(^|[^\\])[\n;]$/) {
+#    push @buf, "$c";
+#  } else {
+#    $buf[$#buf] .= $c;
+#  }
+   a_states sub { my @t = @_; $g = join "", @t; color(closed($g)); }
+   if ($f) {
+     attrset (COLOR_PAIR($f));
+     addstring($c);
+     refresh;
+   }
+
+  return $g;
 }
 sub find { 
   $model = shift;

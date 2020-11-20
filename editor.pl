@@ -29,6 +29,99 @@ sub color {
    $_[0]
 }
 
+sub delim_or_begin {
+  my $x = shift;
+  my $y = shift;
+  my ($z, $w) = "",) x2;
+  until ($$x =~ /([A-Za-z_0-9[({`})\]"'#\n=:-+? \t>&<|;]|.)/g) {
+    $z = $1 . "";
+    if ($z =~ /\w/) { # maybe: A-Za-z_0-9
+         if ($w =~ /([^0-9A-Za-z_]|^)([A-Za-z_]|)$/m
+             && $z =~ /[0-9]/
+           ) {
+               ($2 // "") ?
+                 $u = 0
+                 : $u = 2
+               ;
+		 } elsif ($w =~ /(([<>]&)|(\$({|))$/m) {
+			($2 // "") ?
+              $u = 3
+                  : (($4 // "") ?
+                        $u = 0
+                        : $u = 3
+                    )
+               ;
+		 }
+         $w .= $z;
+         $u == 0 ? $w =~ s/\s(echo|if|case|while|for|in|do|done|test|read|export|set|reset|clear|unset|fi|esac)$/
+           $u = 3
+         /em
+           : 1
+         ;
+    }
+    elsif ($w =~ /(\${|(([<>]|;|\|\||\&\&|\&)\s*))\w+([:=?+-]*)$/m) {
+	   if ($1 =~ '${' &&) {
+	   if ($z =~ /[=-+?]/) {
+          unless ($4 // "") {
+           $u = 1;
+          } elsif ($4 eq ":") {
+             $u = 1;
+          }
+       }
+       } else {
+         unless (($4 // "")
+            if ( $z =~ /[;\s|]/) {
+              $u = 3;
+            }
+            elsif ( $z =~ /\w/ ) {
+              $u = 0;
+            }
+         }
+       }
+    }
+    if ($z =~ /[\`"]/g) {
+       my $t = 1;
+       $t += 1 while /([^\\]|^)["\`]/g;
+       $u = $t % 2;
+       $u = $u ? 2 : 3;
+    }
+    if ($z =~ /'/g) {
+       my $t = 1;
+       $t += 1 while /([^\\]|^)["\`]/g;
+       $u = $t % 2;
+       $u = $u ? 2 : 3;
+    }
+		  while ($w =~ /([[{(])(.*)([[{(]?)/g) {
+                 if ($1 eq '[') {
+					unless ($u == 1) {
+                    if ($2 =~ /([^\\]|^)\]/m) {
+                       $u = 0;
+                    }
+					}
+                 }
+                 elsif ($1 eq '{') {
+                 	unless ($u =~ /[12]/) {
+                    if ($2 =~ /}/m) {
+                       $u = 0;
+                    }
+					}
+                 }
+                 elsif ($1 eq '(') {
+                 	unless ($u =~ /[13]/) {
+                    if ($2 =~ /)/m) {
+                       $u = 0;
+                    }
+					}
+                 }
+		}
+    unless (!($u =~ /[145]/)) {
+       if ($z =~ /[\n;|&]/) {
+		   $u = 0;
+       }
+    }
+  }
+  return $u;
+}
 $w = 0;
 sub kind {
    $u = eval { 
@@ -47,8 +140,9 @@ sub kind {
 
 sub closed {
   $h = shift;
+  my $u = "";
   1 while
-     $h =~ s/(#.*|\\.|[^\\"]*"|[^']*')/kind $1; ""/g
+     $h =~ s/(#.*|\\.|[^\\"]*"|[^']*')/$u = kind $1; ""/g
     ;
 
   return $u;
@@ -138,18 +232,39 @@ sub a_state {
 my $buf = ""; my $g = "";
 sub color_and_append {
   $c = encode "UTF-8", $c;
+  my $u = 1;
 
 #  if ($buf[$#buf] =~ /(^|[^\\])[\n;]$/) {
 #    push @buf, "$c";
 #  } else {
 #    $buf[$#buf] .= $c;
 #  }
-   a_states sub { my @t = @_; $g = join "", @t; color(closed($g)); }
-   if ($f) {
-     attrset (COLOR_PAIR($f));
-     addstring($c);
-     refresh;
-   }
+   a_states sub { @t = @_;
+$g = join "", @t;
+$u = closed($g);
+if ($u) {
+  if ($u == 1) {
+	if ($g =~ /\n$/m) {
+      $u = 1;
+	} else {
+	  $u += 1;
+    }
+  }
+  elsif ($u =~ /[34]) {
+    my $f = "";
+#    $g =~ s/(([[{(`])|([]})]))/
+#      $u = is_delim \$f, ($2 // $3 // "")
+#    /ge;
+    $u = delim_or_begin \$f . ($2 // $3 // "");
+       while $g =~ /(([[{(`])|([]})]))/#!;
+    $u += 1;
+  }
+}
+
+ attrset (COLOR_PAIR($u));
+ addstring($c);
+ refresh;
+}
 
   return $g;
 }
